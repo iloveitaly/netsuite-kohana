@@ -4,8 +4,8 @@ class netsuite {
 	
 	public static function getNetsuiteConnection() {
 		if(empty(netsuite::$netsuiteConnection)) {
-			require Kohana::find_file('vendor', "netsuite/PHPtoolkit.php");
-			require Kohana::find_file('vendor', "netsuite/directory_v2010.1.php");
+			require Kohana::find_file('vendor', "netsuite/PHPtoolkit");
+			require Kohana::find_file('vendor', "netsuite/directory_v2010.1");
 
 			netsuite::$netsuiteConnection = new nsClient(nsHost::live);
 
