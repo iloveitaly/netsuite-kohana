@@ -534,10 +534,10 @@ class nsGetRecordRefResult {
 
         }
 
-        if (is_array($response->recordRefList->recordRef) || is_array($response->baseRefList->baseRef) || is_array($response->customizationRefList->customizationRef)) {
+        if ((isset($response->recordRefList) && is_array($response->recordRefList->recordRef)) || (isset($response->baseRefList) && is_array($response->baseRefList->baseRef)) || (isset($response->customizationRefList) && is_array($response->customizationRefList->customizationRef))) {
 
-            $bRecRef = is_array($response->recordRefList->recordRef);
-            $bCustomizationRef = is_array($response->customizationRefList->customizationRef);
+            $bRecRef = isset($response->recordRefList) ? is_array($response->recordRefList->recordRef) : FALSE;
+            $bCustomizationRef = isset($response->customizationRefList) ? is_array($response->customizationRefList->customizationRef) : FALSE;
             $refList =   $bRecRef ? $response->recordRefList->recordRef : $bCustomizationRef ? $response->customizationRefList->customizationRef : $response->baseRefList->baseRef;
             foreach ($refList as $recRef) {
 
