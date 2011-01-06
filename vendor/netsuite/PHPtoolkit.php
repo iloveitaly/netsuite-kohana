@@ -6,12 +6,12 @@
  * All rights reserved.
  */
 
-require_once 'directory_v2010.1.php';
+require_once 'directory_v2010.2.php';
 
 global $myDirectory;
 global $endpoint;
 
-$version = "2010_1r1";
+$version = "2010_2r1";
 
 class nsComplexObject
 {
@@ -591,9 +591,9 @@ class nsGetItemAvailabilityResult {
 
         $this->isSuccess = $getItemAvailabilityResult->status->isSuccess;
 
-        if ( isset($searchResponse->status->statusDetail) ) {
+        if ( isset($getItemAvailabilityResult->status->statusDetail) ) {
 
-            $this->statusDetail = getStatusDetail($searchResponse->status->statusDetail);
+            $this->statusDetail = getStatusDetail($getItemAvailabilityResult->status->statusDetail);
 
         }
 
@@ -1064,8 +1064,8 @@ class nsClient {
 
         function deserializeRecord ($obj)
         {
-            $obj = cleanUpNamespaces($obj);
             $ns = retrieveNamespaces($obj);
+            $obj = cleanUpNamespaces($obj);
             $xml = simplexml_load_string($obj, 'SimpleXMLElement', LIBXML_NOCDATA);
             $x = deserializeSimpleXML($xml,null,$ns);
 
@@ -1099,7 +1099,7 @@ class nsClient {
 
             $i=0;
             $toRet = Array();
-            foreach ($record_element->getDocNamespaces() as $name => $ns)
+            foreach ($record_element->getNamespaces(true) as $name => $ns)
             {
                 if (!empty($name) && substr($ns,0,4) =="urn:")
                 {
@@ -1111,31 +1111,23 @@ class nsClient {
             }
             return $toRet;
         }
+
+        /**
+         * Replaces xsi:type with xsitype and removes namespace aliases from xml tags. E.g. platformCommon:item -> item 
+         *
+         * @param  $xml_root the string containing xml document to process
+         * @return xml without namespace aliases
+         */
         function cleanUpNamespaces($xml_root)
         {
             $xml_root = str_replace('xsi:type', 'xsitype', $xml_root);
             $record_element = new SimpleXMLElement($xml_root);
 
-            foreach ($record_element->getDocNamespaces() as $name => $ns)
+            foreach ($record_element->getNamespaces(true) as $name => $ns)
             {
                 if ( $name != "" )
                 {
                     $xml_root = str_replace($name . ':', '', $xml_root);
-                }
-            }
-
-            $record_element = new SimpleXMLElement($xml_root);
-
-            foreach($record_element->children() as $field)
-            {
-                $field_element = new SimpleXMLElement($field->asXML());
-
-                foreach ($field_element->getDocNamespaces() as $name2 => $ns2)
-                {
-                    if ($name2 != "")
-                    {
-                        $xml_root = str_replace($name2 . ':', '', $xml_root);
-                    }
                 }
             }
 
@@ -1880,39 +1872,38 @@ function deserializeSimpleXML (SimpleXMLElement $record_element, $parent="", $na
 
     foreach($record_element->attributes() as $attributeName => $attributeValue)
     {
-
-        if ($attributeName == 'xsitype') {
-
+        if ($attributeName == 'xsitype')
+        {
             continue;
-
-        } else {
-
-            $record->setFields(array($attributeName => (string)$attributeValue));
-
         }
-
+        else
+        {
+            $record->setFields(array($attributeName => (string)$attributeValue));
+        }
     }
 
     foreach ($record_element->children() as $fieldName => $fieldValue)
     {
-        if ($fieldValue->children()) {
-
+        if ($fieldValue->children())
+        {
             // e.g. RecordRef field or a list
 
-            if      ( getFieldType($parent . "/" . $fieldName,$namespaces) == "PricingMatrix")              $nsField = new nsPricingMatrix();
-            elseif  ( getFieldType($parent . "/" . $fieldName,$namespaces) == "PriceList")                  $nsField = new nsPriceList();
-            elseif  ( getFieldType($parent . "/" . $fieldName,$namespaces) == "CustomFieldList")            $nsField = new nsCustomFieldList();
-            elseif  ( getFieldType($parent . "/" . $fieldName,$namespaces) == $parent . "AddressbookList")  $nsField = new nsAddressbookList($parent . "AddressbookList");
-            else {$nsField = new nsComplexObject(getFieldType($parent . "/" . $fieldName,$namespaces),null,$namespaces);}
+            $fieldType = getFieldType($parent . "/" . $fieldName,$namespaces);
 
-            foreach ($fieldValue as $fieldValue_name => $fieldValue_value) {
+            if      ( $fieldType == "PricingMatrix")              $nsField = new nsPricingMatrix();
+            elseif  ( $fieldType == "PriceList")                  $nsField = new nsPriceList();
+            elseif  ( $fieldType == "CustomFieldList")            $nsField = new nsCustomFieldList();
+            elseif  ( $fieldType == $parent . "AddressbookList")  $nsField = new nsAddressbookList($parent . "AddressbookList");
+            else {$nsField = new nsComplexObject(!is_null(getTypeFromXML($fieldValue)) ? getTypeFromXML($fieldValue) : $fieldType,null,$namespaces);}
 
-                if (count($fieldValue->$fieldValue_name) == 1) {
-
+            foreach ($fieldValue as $fieldValue_name => $fieldValue_value)
+            {
+                if (count($fieldValue->$fieldValue_name) == 1)
+                {
                     // e.g. RecordRef field, or a list where the field is not an array
 
-                    if ($fieldValue_value->children()) {
-
+                    if ($fieldValue_value->children())
+                    {
                         // e.g. $fieldValue_value is a SalesOrderItem, Addressbook, etc
 
                         // deserializeSimpleXML function will return a nsComplexObject
@@ -1922,85 +1913,83 @@ function deserializeSimpleXML (SimpleXMLElement $record_element, $parent="", $na
                                         ? getTypeFromXML($fieldValue_value) : getFieldType($nsField->nsComplexObject_type . "/" . $fieldValue_name,$namespaces),
                                     $namespaces)));
 
-                    } else {
-
+                    }
+                    else
+                    {
                         // e.g. name field on a RecordRef
 
                         $nsField->setFields(array($fieldValue_name => (string)$fieldValue_value));
-
-                    }
-
-                } else {
-
-                    // e.g. more than one item on an item list, or contacts in a contact list
-
-                    if ($fieldValue_value->children()) {
-
-                        $u[] = deserializeSimpleXML($fieldValue_value, !is_null(getTypeFromXML($fieldValue_value)) ? getTypeFromXML($fieldValue_value) : getFieldType($nsField->nsComplexObject_type . "/" . $fieldValue_name,$namespaces),$namespaces);
-
-                    } else {
-
-                        $u[] = (string)$fieldValue_value;
-
                     }
 
                 }
-
+                else
+                {
+                    // e.g. more than one item on an item list, or contacts in a contact list
+                    if ($fieldValue_value->children())
+                    {
+                        $u[] = deserializeSimpleXML($fieldValue_value, !is_null(getTypeFromXML($fieldValue_value)) ? getTypeFromXML($fieldValue_value) : getFieldType($nsField->nsComplexObject_type . "/" . $fieldValue_name,$namespaces),$namespaces);
+                    }
+                    else
+                    {
+                        $u[] = (string)$fieldValue_value;
+                    }
+                }
             }
 
-            if (isset($u)) {
-
+            if (isset($u))
+            {
                 // if $u has a value and it has not been set
 
                 $nsField->setFields(array($fieldValue_name => $u));
                 // clear field so values will not be reused
                 unset($u);
-
             }
 
-            foreach ($fieldValue->attributes() as $z => $d) {
-
-                $nsField->setFields(array($z => (string)$d));
-
+            foreach ($fieldValue->attributes() as $z => $d)
+            {
+                if ($z == 'xsitype')
+                {
+                    continue;
+                }
+                else
+                {
+                    $nsField->setFields(array($z => (string)$d));
+                }
             }
 
-            if (count($record_element->$fieldName) == 1) {
-
+            if (count($record_element->$fieldName) == 1)
+            {
                 // e.g. name on a RecordRef
 
                 unset($t);
                 $record->setFields(array($fieldName => $nsField));
-
-            } else {
-
+            }
+            else
+            {
                 $t[] = $nsField;
                 $record->setFields(array($fieldName => $t));
-
             }
 
-        } else {
-
+        }
+        else
+        {
             // e.g. a string field
 
-            if (count($record_element->$fieldName) == 1) {
-
+            if (count($record_element->$fieldName) == 1) 
+            {
                 // if not a list or array of one element
 
                 unset($j); // reset array $j
                 $record->setFields(array($fieldName => (string)$fieldValue));
-
-            } else {
-
+            }
+            else
+            {
                 // if $record_element->$fieldName is array with more than one element (e.g. item on ItemList)
 
                 $j[] = (string)$fieldValue;
                 $record->setFields(array($fieldName => $j));
-
             }
-
         }
-
-
     }
 
     return $record;
