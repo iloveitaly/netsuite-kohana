@@ -2006,7 +2006,7 @@ function deserializeSimpleXML (SimpleXMLElement $record_element, $parent="", $na
  */
 
 function getNameSpace($complexTypeName, $namespaces=null) {
-
+	global $myDirectory;
     if (strpos($complexTypeName, '/') === TRUE) {
         throw new Exception('ComplexTypeName cannot have "/"');
     }
@@ -2071,7 +2071,7 @@ function getFieldType ($fieldPath, $namespaces) {
 function searchDirectory($toFind, $namespaces)
 {
     global $myDirectory;
-    $toRet = $myDirectory[$toFind];
+    $toRet = isset($myDirectory[$toFind]) ? $myDirectory[$toFind] : '';
     if (empty($toRet) && !empty($namespaces))
     {
         foreach ($namespaces as $i => $ns)
