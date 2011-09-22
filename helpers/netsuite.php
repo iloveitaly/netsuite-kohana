@@ -2,12 +2,12 @@
 class netsuite {
 	public static $netsuiteConnection;
 	
-	public static function getNetsuiteConnection() {
+	public static function getNetsuiteConnection($sandbox = false) {
 		if(empty(netsuite::$netsuiteConnection)) {
 			require Kohana::find_file('vendor', "netsuite/PHPtoolkit");
 			require Kohana::find_file('vendor', "netsuite/directory_v2010.1");
 
-			netsuite::$netsuiteConnection = new nsClient(nsHost::live);
+			netsuite::$netsuiteConnection = new nsClient($sandbox ? nsHost::sandbox : nsHost::live);
 
 			// set request level credentials. (email, password, account#, internal id of role)
 			netsuite::$netsuiteConnection->setPassport(

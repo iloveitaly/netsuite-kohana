@@ -1,3 +1,9 @@
+Your `config/netsuite.php` should look something like this
+
+	$config['email'] = "email@domain.com";
+	$config['account'] = "accountnumber";
+	$config['password'] = "password";
+	$config['role'] = "role";
 
 Here are some examples that are useful in inspecting netsuite objects in order to understand how to pull information or manipulate them.
 
