@@ -6,12 +6,12 @@
  * All rights reserved.
  */
 
-require_once 'directory_v2010.2.php';
+require_once 'directory_v2011.1.php';
 
 global $myDirectory;
 global $endpoint;
 
-$version = "2010_2r1";
+$version = "2011_1r1";
 
 class nsComplexObject
 {
@@ -2006,7 +2006,6 @@ function deserializeSimpleXML (SimpleXMLElement $record_element, $parent="", $na
  */
 
 function getNameSpace($complexTypeName, $namespaces=null) {
-	global $myDirectory;
     if (strpos($complexTypeName, '/') === TRUE) {
         throw new Exception('ComplexTypeName cannot have "/"');
     }
