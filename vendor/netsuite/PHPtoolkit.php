@@ -420,13 +420,15 @@ class nsSearchResponse
         {
             $this->statusDetail = getStatusDetail($searchResponse->status->statusDetail);
         }
-
+        
+        if(!$this->isSuccess) return;
+        
         $this->totalRecords = $searchResponse->totalRecords;
         $this->pageSize = $searchResponse->pageSize;
         $this->totalPages = $searchResponse->totalPages;
         $this->pageIndex = $searchResponse->pageIndex;
         $this->searchId = $searchResponse->searchId;
-
+        
         if (!is_null($searchResponse->recordList))
         {
             if (is_array($searchResponse->recordList->record))
