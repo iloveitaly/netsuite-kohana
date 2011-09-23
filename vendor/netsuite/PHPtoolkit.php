@@ -1427,15 +1427,6 @@ class nsClient {
 
     }
 
-    function getCustomization($getCustomizationType)
-    {
-
-        $getCustomizationResponse = $this->makeCall("getCustomization", array(array('customizationType' => array('getCustomizationType' => $getCustomizationType))));
-
-        return new nsGetRecordResult( $getCustomizationResponse->getCustomizationResult );
-
-    }
-
     function getSelectValue( $gsvFieldDescription, $page=1 )
     {
 
