@@ -74,5 +74,18 @@ class netsuite {
 	public static function createContact($data) {
 		
 	}
+	
+	protected function getCustomFields() {
+	    echo "array(\n";
+		$customFieldList = $currentRecord->getField('customFieldList')->getField('customField');
+		$lastField = end($customFieldList);
+		foreach($customFieldList as $field) {
+			echo "\t'".$field->getField('internalId')."' => ''";
+			
+			if($field != $lastField) echo ",";
+			echo "\n";
+		}
+		echo ");";
+	}
 }
 ?>
