@@ -1289,7 +1289,7 @@ class nsClient {
         }
 
         $getListResponse = $this->makeCall("getList", array('baseRef' => $recsToGet));
-
+        
         if ( count($getListResponse->readResponseList->readResponse) == 1 )
         {
             $getListResponseArray[] = new nsReadResponse( $getListResponse->readResponseList->readResponse );
@@ -1999,6 +1999,8 @@ function deserializeSimpleXML (SimpleXMLElement $record_element, $parent="", $na
  */
 
 function getNameSpace($complexTypeName, $namespaces=null) {
+    global $myDirectory;
+    
     if (strpos($complexTypeName, '/') === TRUE) {
         throw new Exception('ComplexTypeName cannot have "/"');
     }
