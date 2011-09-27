@@ -123,7 +123,8 @@ class netsuite {
             return false;
         }
 	    
-        return $response;
+	    // $response->record contains a ComplexObject which contains a customValueList field which contains all the values
+        return $response->record;
 	}
 	
 	public static function getAllCustom($customRecordTypeInternalId) {
@@ -160,8 +161,142 @@ class netsuite {
 	    }
 	}
 	
+	// generates an array which represents the structure + values of all custom lists in the netsuite instance
+	// this can be useful for developing & submitting custom hosted forms which deal with netsuite custom records / lists
+	// note: this is meant to be used in order to get a PHP rep of netsuite lists that can be copy/pasted into a config file
+	public static function getCustomListMapping() {
+        $customLists = self::$netsuiteConnection->getCustomizationId('customList', true);
+        $customListVarExport = array();
+        
+        // TODO: Respect inactive fields
+        
+        foreach($customLists->customizationRefList as $customList) {
+            $customListKey = $customList->getField('internalId');            
+            $listInfo = self::getCustomList($customListKey);
+            
+            // catch bad list
+            if(!is_object($listInfo->getField('customValueList'))) {
+                // echo "Invalid List!";
+                // print_r($listInfo);
+                
+                $customListVarExport[$customListKey] = array(
+                    'values' => array(),
+                    'scriptId' => $customList->getField('scriptId'),
+                    'name' => $customList->getField('name'),
+                    'note' => 'Error: this list is either empty or is structured in an unknown fashion'
+                );
+
+                continue;
+            }
+            
+            // used to store custom list values in the format: internalId => custom list item value
+            $customValueList = array();
+            
+            // this will either be a single value object, or a list of objects
+            $rawCustomValueList = $listInfo->getField('customValueList')->getField('customValue');
+            
+            if(!is_array($rawCustomValueList)) {
+                // then there is only one entry, no array
+                $customValueList[$rawCustomValueList->getField('valueId')] = $rawCustomValueList->getField('value');
+            } else {
+                // echo "Value List for: ".$listInfo->getField('scriptId');
+                // print_r($rawCustomValueList);
+                
+                foreach($rawCustomValueList as $customValue) {
+                    /*
+                    Example Custom Value Structure:
+                    [0] => nsComplexObject Object
+                        (
+                            [nsComplexObject_type] => CustomListCustomValue
+                            [nsComplexObject_namespace] => urn:customization_2011_1.setup.webservices.netsuite.com
+                            [nsComplexObject_fields] => Array
+                                (
+                                    [value] => Trade Books
+                                    [isInactive] => 
+                                    [valueId] => 5
+                                )
+
+                            [nsComplexObject_namespaces] => Array
+                                (
+                                    [0] => setupcustomization
+                                    [1] => platformcore
+                                )
+
+                        )
+                    */
+                    
+                    // in the netsuite instances that I have tested with this never occurs
+                    if(!is_object($customValue)) {
+                        echo "Invalid Custom Value!\n";
+                        continue;
+                    }
+                    
+                    // echo "Adding :".$customValue->getField('valueId')."::".$customValue->getField('value');
+                    $customValueList[$customValue->getField('valueId')] = $customValue->getField('value');
+                }
+            }
+            
+            // add the entry
+            $customListVarExport[$customListKey] = array(
+                'values' => $customValueList,
+                'scriptId' => $customList->getField('scriptId'),
+                'name' => $customList->getField('name')
+            );
+        }
+        
+        echo format_php_export(var_export($customListVarExport, true));
+        
+        // get a list of scriptId => internalId for easy access
+        
+        echo "\n\n";
+        $listShortcuts = array();
+        
+        foreach($customListVarExport as $internalId => $listInfo) {
+            $listShortcuts[$listInfo['scriptId']] = $internalId;
+        }
+        
+        echo format_php_export(var_export($listShortcuts, true));
+        
+        // $customRecords = self::$netsuiteConnection->getCustomizationId('customRecordType', true);
+        
+        return $customListVarExport;
+	}
+	
 	public static function getRecordMapping($record) {
+        $mapping = Kohana::config('netsuite.mapping');
+        
+	    if(empty($mapping)) {
+	        $mapping = array('list' => self::getCustomListMapping());
+	        
+            echo "\n\n";
+	    }
+
 	    // note that this has only been tested on custom records
+	    
+	    /*
+	    Type Listing:
+	    _checkBox
+        _currency
+        _date
+        _decimalNumber
+        _document
+        _eMailAddress
+        _freeFormText
+        _help
+        _hyperlink
+        _image
+        _inlineHTML
+        _integerNumber
+        _listRecord
+        _longText
+        _multipleSelect
+        _password
+        _percent
+        _phoneNumber
+        _richText
+        _textArea
+        _timeOfDay
+        */
 	    
         $recordMapping = array();
         $customFieldList = $record->getField('fieldList')->getField('customField');
@@ -169,12 +304,37 @@ class netsuite {
         foreach($customFieldList as $customField) {
             // fieldName = scriptId = internalId... obvious, right?
             $fieldName = strtolower($customField->getField('internalId'));
-            $currentMapping = $recordMapping[$fieldName] = array(
-                'type' => $customField->nsComplexObject_type
+            $recordMapping[$fieldName] = array(
+                'type' => $customField->getField('fieldType'),
+                'label' => $customField->getField('label')
             );
-            print_r($customField);
-            if($currentMapping['type'] == 'SelectCustomFieldRef') {
+            // print_r($customField);
+            
+            switch($recordMapping[$fieldName]['type']) {
+                case '_freeFormText':
+                    
+                    break;
                 
+                // note that this can be either a customlist or customrecord
+                case '_listRecord':
+                    
+                    break;
+                
+                // this can be a reference to a custom list
+                case '_multipleSelect':
+                    print_r($customField);
+                    
+                    // decide if it a list or a record
+                    $customFieldInternalId = $customField->getField('selectRecordType')->getField('internalId');
+                    
+                    if(isset($mapping['list'][$customFieldInternalId])) {
+                        // then it a list
+                        $recordMapping[$fieldName]['internalId'] = $customFieldInternalId;
+                        $recordMapping[$fieldName]['scriptId'] = $mapping['list'][$customFieldInternalId]['scriptId'];
+                    } else {
+                        
+                    }
+                    break;
             }
         }
         
