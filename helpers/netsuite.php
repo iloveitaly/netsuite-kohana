@@ -161,6 +161,54 @@ class netsuite {
 	    }
 	}
 	
+	public static function getCustomRecordMapping() {
+        $customRecords = self::$netsuiteConnection->getCustomizationId('customRecordType', true);
+        $customRecordShortcuts = array();
+        
+        foreach($customRecords->customizationRefList as $customRecord) {
+            $customRecordId = $customRecord->getField('internalId');
+            
+            // attempt to get the values
+            // note that we don't want to grab the values if there is *many* records
+            // the cut off is 25
+            
+            $customRecordSearch = new nsComplexObject("CustomRecordSearchBasic");
+            $customRecordSearch->setFields(array(
+                'recType' => new nsCustomRecordRef(array(
+                    'internalId' => $customRecordId,
+                )),
+            ));
+
+    	    self::$netsuiteConnection->setSearchPreferences(FALSE, 50);
+            $searchResponse = self::$netsuiteConnection->search($customRecordSearch);
+            $customRecordList = array();
+            
+            $customRecordList = array();
+            
+            if($searchResponse->totalPages == 1) {
+                // echo "List for record: ".$customRecord->getField('scriptId');
+                // print_r($searchResponse);
+                
+                foreach($searchResponse->recordList as $record) {
+                    $customRecordList[$record->getField('internalId')] = $record->getField('name');
+                }
+            } else {
+                // echo "Record not a list: ".$customRecord->getField('scriptId');
+                // just display an empty list of values for a 'real' custom record that isn't being used as a list
+            }
+            
+            $customRecordShortcuts[$customRecordId] = array(
+                'scriptId' => $customRecord->getField('scriptId'),
+                'name' => $customRecord->getField('name'),
+                'values' => $customRecordList
+            );
+            
+            // print_r($customRecord);
+        }
+        
+        echo format_php_export(var_export($customRecordShortcuts, true));
+	}
+	
 	// generates an array which represents the structure + values of all custom lists in the netsuite instance
 	// this can be useful for developing & submitting custom hosted forms which deal with netsuite custom records / lists
 	// note: this is meant to be used in order to get a PHP rep of netsuite lists that can be copy/pasted into a config file
@@ -257,16 +305,17 @@ class netsuite {
         
         echo format_php_export(var_export($listShortcuts, true));
         
-        // $customRecords = self::$netsuiteConnection->getCustomizationId('customRecordType', true);
-        
         return $customListVarExport;
 	}
 	
 	public static function getRecordMapping($record) {
         $mapping = Kohana::config('netsuite.mapping');
         
-	    if(empty($mapping)) {
-	        $mapping = array('list' => self::getCustomListMapping());
+	    if(empty($mapping) || empty($mapping['list']) || empty($mapping['record'])) {
+	        $mapping = array(
+	            'list' => self::getCustomListMapping(),
+	            'record' => self::getCustomRecordMapping()
+	        );
 	        
             echo "\n\n";
 	    }
@@ -317,28 +366,29 @@ class netsuite {
                 
                 // note that this can be either a customlist or customrecord
                 case '_listRecord':
-                    
-                    break;
-                
                 // this can be a reference to a custom list
                 case '_multipleSelect':
-                    print_r($customField);
+                    // print_r($customField);
                     
                     // decide if it a list or a record
                     $customFieldInternalId = $customField->getField('selectRecordType')->getField('internalId');
+                    $recordMapping[$fieldName]['internalId'] = $customFieldInternalId;
                     
                     if(isset($mapping['list'][$customFieldInternalId])) {
                         // then it a list
-                        $recordMapping[$fieldName]['internalId'] = $customFieldInternalId;
                         $recordMapping[$fieldName]['scriptId'] = $mapping['list'][$customFieldInternalId]['scriptId'];
+                    } else if(isset($mapping['record'][$customFieldInternalId])) {
+                        $recordMapping[$fieldName]['scriptId'] = $mapping['record'][$customFieldInternalId]['scriptId'];
                     } else {
-                        
+                        echo "Uncaught list / record reference: ".$customFieldInternalId."\n";
+                        // print_r($customField);
+                        $recordMapping[$fieldName]['name'] = $customField->getField('selectRecordType')->getField('name');
                     }
                     break;
             }
         }
         
-        print_r($recordMapping);
+       echo format_php_export(var_export($recordMapping, true));
 	}
 	
 	public static function getCustomFields($record) {
