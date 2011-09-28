@@ -424,12 +424,12 @@ class nsSearchResponse
         if(!$this->isSuccess) return;
         
         $this->totalRecords = $searchResponse->totalRecords;
-        $this->pageSize = $searchResponse->pageSize;
+        $this->pageSize = isset($searchResponse->pageSize) ? $searchResponse->pageSize : 0;
         $this->totalPages = $searchResponse->totalPages;
-        $this->pageIndex = $searchResponse->pageIndex;
+        $this->pageIndex = isset($searchResponse->pageIndex) ? $searchResponse->pageIndex : 0;
         $this->searchId = $searchResponse->searchId;
         
-        if (!is_null($searchResponse->recordList))
+        if (!is_null($searchResponse->recordList) && !empty($searchResponse->recordList->record))
         {
             if (is_array($searchResponse->recordList->record))
             {
@@ -450,7 +450,7 @@ class nsSearchResponse
                 $this->recordList[] = $cleanRecord;
             }
         }
-        elseif (!is_null($searchResponse->searchRowList))
+        elseif (!empty($searchResponse->searchRowList) && !is_null($searchResponse->searchRowList))
         {
             if (is_array($searchResponse->searchRowList->searchRow))
             {
