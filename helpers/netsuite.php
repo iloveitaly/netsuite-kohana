@@ -1,5 +1,5 @@
 <?
-class netsuite {
+class netsuite_Core {
 	public static $netsuiteConnection;
 	
 	public static function getNetsuiteConnection($sandbox = false) {
@@ -21,63 +21,9 @@ class netsuite {
 		return netsuite::$netsuiteConnection;		
 	}
 	
-	public static function bestMatchContact($data) {
-		// this is the tricky function: contacts can be stored in many different ways
-		// Here are a couple different cases:
-		//		First & last name match but email doesn't (b/c the user is using a different email)
-		//		First & last name match but zip doesn't (but the state does... maybe the user moved)
-		//		We have the date modified and it was a year ago, the state, first, and last matches but the zip / email are different
-		
-	}
-	
-	public static function findContact($data) {
-		$netsuiteClientConnection = netsuite::getNetsuiteConnection();
-		
-		$searchFields = array();
-		
-		// data should be an array of searchKey => searchValue i.e. array('email' => 'hello@gmail.com', 'firstName' => 'hello')
-
-		foreach($data as $searchKey => $searchValue) {
-			$searchFields[$searchKey] = array(
-				'operator' => 'is',
-				'searchValue' => $searchValue
-			);
-		}
-		
-		// find record
-		
-		$contactRecordSearch = new nsComplexObject("ContactSearchBasic");
-		$contactRecordSearch->setFields(array_merge($setFields, array(
-			// 'recType' => 'contact',
-		)));
-		
-		// FALSE sets bodyFieldsOnly
-		$netsuiteClientConnection->setSearchPreferences(FALSE, 100);
-		
-		$searchResponse = $netsuiteClientConnection->search($contactRecordSearch);
-		
-		// var_dump($searchResponse);
-		
-		if($searchResponse->totalRecords > 0) {
-			if($searchResponse->totalRecords == 1) {
-				// then we have found a match, modify / update existing information
-				$currentRecord = $searchResponse->recordList[0];
-				return $currentRecord->getField('internalId');
-			} else {
-				return $searchResponse->recordList;
-			}
-		} else {
-			return FALSE;
-		}
-	}
-	
-	public static function createContact($data) {
-		
-	}
-	
+	// this will grab the structure of a custom record that can then be used to generate a mapping
+	// note that the identifier can be either a ID or scriptId
 	public static function getCustomRecord($customRecordIdentifier) {
-	    // note that the identifier can be either a ID or scriptId
-	    
 	    if(is_string($customRecordIdentifier) && strstr($customRecordIdentifier, 'custrecord_') !== FALSE) {
             $referenceType = 'scriptId';
 	    } else {
@@ -101,9 +47,9 @@ class netsuite {
 	    
 	}
 	
+	// this will get the raw information about a custom list. It's used within getCustomListMapping()
+	// note that the identifier can be either a ID or scriptId
 	public static function getCustomList($customListIdentifier) {
-	    // note that the identifier can be either a ID or scriptId
-	    
 	    if(is_string($customListIdentifier) && strstr($customListIdentifier, 'customlist_') !== FALSE) {
             $referenceType = 'scriptId';
 	    } else {
@@ -380,6 +326,7 @@ class netsuite {
                     } else if(isset($mapping['record'][$customFieldInternalId])) {
                         $recordMapping[$fieldName]['scriptId'] = $mapping['record'][$customFieldInternalId]['scriptId'];
                     } else {
+                        // this is most likely b/c it is referencing a core record type
                         echo "Uncaught list / record reference: ".$customFieldInternalId."\n";
                         // print_r($customField);
                         $recordMapping[$fieldName]['name'] = $customField->getField('selectRecordType')->getField('name');
@@ -437,6 +384,114 @@ class netsuite {
         }
         
         return $convertedValues;
+	}
+	
+	public static function prepareFieldList($fieldData, $recordMappingKey) {
+        $customFields = array();
+        
+        $recordFieldMapping = Kohana::config('netsuite.mapping.crud.'.$recordMappingKey);
+        
+        foreach($fieldData as $netsuiteFieldKey => $data) {
+            if(empty($data)) continue;
+            
+            /*
+    	    Type Listing:
+    	    _checkBox
+            _currency
+            _date
+            _decimalNumber
+            _document
+            _eMailAddress
+            _freeFormText
+            _help
+            _hyperlink
+            _image
+            _inlineHTML
+            _integerNumber
+            _listRecord
+            _longText
+            _multipleSelect
+            _password
+            _percent
+            _phoneNumber
+            _richText
+            _textArea
+            _timeOfDay
+            */
+            
+            // check to make sure the field exists in our mapping information
+    	    if(!isset($recordFieldMapping[$netsuiteFieldKey])) continue;
+    	    
+    	    switch($recordFieldMapping[$netsuiteFieldKey]['type']) {
+    	        case '_date':
+        	        $customFields[] = new nsComplexObject('DateCustomFieldRef', array(
+            			'internalId' => $netsuiteFieldKey,
+            			'value' => date("c", $data)
+                    ));
+                    break;
+    	        case '_listRecord':
+    	        /*
+    	        
+                [2] => nsComplexObject Object
+                    (
+                        [nsComplexObject_type] => SelectCustomFieldRef
+                        [nsComplexObject_namespace] => urn:core_2011_1.platform.webservices.netsuite.com
+                        [nsComplexObject_fields] => Array
+                            (
+                                [internalId] => custrecord_customer
+                                [value] => nsComplexObject Object
+                                    (
+                                        [nsComplexObject_type] => ListOrRecordRef
+                                        [nsComplexObject_namespace] => urn:core_2011_1.platform.webservices.netsuite.com
+                                        [nsComplexObject_fields] => Array
+                                            (
+                                                [internalId] => 6303
+                                                [typeId] => -2
+                                            )
+
+                                        [nsComplexObject_namespaces] => Array
+                                            (
+                                                [0] => setupcustomization
+                                                [1] => platformcore
+                                            )
+
+                                    )
+
+                            )
+
+                        [nsComplexObject_namespaces] => Array
+                            (
+                                [0] => setupcustomization
+                                [1] => platformcore
+                            )
+
+                    )
+                */
+                
+    	            $customFields[] = new nsComplexObject('SelectCustomFieldRef', array(
+    	                'internalId' => $netsuiteFieldKey,
+    	                'value' =>  new nsListOrRecordRef(array(
+            			    'internalId' => $data,
+            			)
+                    )));
+                    
+                    break;
+    	        case '_hyperlink':
+    	        case '_freeFormText':
+    	        case '_eMailAddress':
+                    $customFields[] = new nsComplexObject('StringCustomFieldRef', array(
+            			'internalId' => $netsuiteFieldKey,
+            			'value' => $data
+                    ));
+    	        
+    	            break;
+    	        default:
+                    echo "Uncaught field: ".$netsuiteFieldKey."\n";
+                    break;
+    	    }
+        }
+        
+        return $customFields;
 	}
 }
 ?>
