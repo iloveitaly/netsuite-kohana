@@ -338,9 +338,14 @@ class nsWriteResponse
 
         if ($this->isSuccess)
         {
-            $this->recordRef = new nsRecordRef(array(   'type'          => $soapResponse->baseRef->type,
-                                                        'internalId'    => $soapResponse->baseRef->internalId,
-                                                        'externalId'    => $soapResponse->baseRef->externalId   ));
+			// if type is set, the response is a normal record response
+			if(isset($soapResponse->baseRef->type)) {
+	            $this->recordRef = new nsRecordRef(array(   'type'          => $soapResponse->baseRef->type,
+	                                                        'internalId'    => $soapResponse->baseRef->internalId,
+	                                                        'externalId'    => $soapResponse->baseRef->externalId   ));				
+			} else {// if not, it is probably a custom record response
+				$this->recordRef = new nsCustomRecordRef(array('typeId' => $soapResponse->baseRef->typeId, 'internalId' => $soapResponse->baseRef->internalId));
+			}
         }
     }
 }
