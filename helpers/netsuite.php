@@ -487,6 +487,8 @@ class netsuite_Core {
 					
 					break;
 				case '_hyperlink':
+					$data = external_link($data);
+				case '_textArea':
 				case '_freeFormText':
 				case '_eMailAddress':
 					$customFields[] = new nsComplexObject('StringCustomFieldRef', array(
