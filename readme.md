@@ -1,9 +1,19 @@
 Your `config/netsuite.php` should look something like this
 
-	$config['email'] = "email@domain.com";
-	$config['account'] = "accountnumber";
-	$config['password'] = "password";
-	$config['role'] = "role";
+	$config['login'] = array(
+		'production' => array(
+			'email' => "email@domain.com",
+		    'account' => "accountnumber",
+		    'password' => "password",
+		    'role' => "role"
+		),
+		'sandbox' => array(
+			'email' => 'mbianco@ascensionpress.com',
+			'password' => 'password',
+		    'account' => 'accountnumber',
+		    'role' => "role",
+		)
+	);
 
 Here are some examples that are useful in inspecting netsuite objects in order to understand how to pull information or manipulate them.
 
@@ -21,3 +31,7 @@ Here are some examples that are useful in inspecting netsuite objects in order t
 	$searchResponse = $netsuiteClientConnection->search($customRecordSearch);
 	print_r($searchResponse);
 	
+
+The acceptable options for the `getAll()` method defined in the PHPToolkit are found [here](https://webservices.netsuite.com/xsd/platform/v2010_2_0/coreTypes.xsd) under the `name="GetAllRecordType"` node.
+
+Note that pulling information about a record that is linked to a record which you don't have access to view will result in the [following error](http://usergroup.netsuite.com/users/showthread.php?t=28090) `Invalid custrecord_fieldname reference key 12345` with error code `INVALID_KEY_OR_REF`

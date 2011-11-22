@@ -8,13 +8,15 @@ class netsuite_Core {
 			require Kohana::find_file('vendor', "netsuite/directory_v2011.1");
 
 			netsuite::$netsuiteConnection = new nsClient($sandbox ? nsHost::sandbox : nsHost::live);
+			
+			$configPrefix = implode('.', array('netsuite', 'login', $sandbox ? 'sanbox' : 'production'));
 
 			// set request level credentials. (email, password, account#, internal id of role)
 			netsuite::$netsuiteConnection->setPassport(
-				Kohana::config('netsuite.email'),
-				Kohana::config('netsuite.password'),
-				Kohana::config('netsuite.account'),
-				Kohana::config('netsuite.role')
+				Kohana::config($configPrefix.'.email'),
+				Kohana::config($configPrefix.'.password'),
+				Kohana::config($configPrefix.'.account'),
+				Kohana::config($configPrefix.'.role')
 			);
 		}
 		
