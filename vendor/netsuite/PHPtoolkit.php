@@ -26,6 +26,11 @@ class nsComplexObject
         $this->nsComplexObject_namespace = getNameSpace($this->nsComplexObject_type, $namespaces);
         $this->nsComplexObject_namespaces = $namespaces;
 
+		// in the original toolkit code this was not given an original value which threw an error if you searched with blank search conditions
+		// in most cases I'm guessing the value of this field will be overridden, but in the case that some code checks for undefined / null
+		// this could case an issue
+		$this->nsComplexObject_fields = array();
+		
         if (!is_null($fields))
         {
             $this->setFields($fields);
