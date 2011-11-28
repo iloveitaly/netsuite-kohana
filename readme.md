@@ -1,3 +1,4 @@
+##Config##
 Your `config/netsuite.php` should look something like this
 
 	$config['login'] = array(
@@ -8,19 +9,20 @@ Your `config/netsuite.php` should look something like this
 		    'role' => "role"
 		),
 		'sandbox' => array(
-			'email' => 'mbianco@ascensionpress.com',
+			'email' => 'email@domain.com',
 			'password' => 'password',
 		    'account' => 'accountnumber',
 		    'role' => "role",
 		)
 	);
 
-Here are some examples that are useful in inspecting netsuite objects in order to understand how to pull information or manipulate them.
+##Examples##
+###Search Custom Record###
 
 	$netsuiteClientConnection = netsuite::getNetsuiteConnection();
 	$customRecordSearch = new nsComplexObject("CustomRecordSearchBasic");
 	$customRecordSearch->setFields(array(
-		'recType' => new nsCustomRecordRef(array('internalId' => id of custom record)),
+		'recType' => new nsCustomRecordRef(array('internalId' => $customRecordTypeID)),
 		'internalIdNumber' => array(
 			'operator' => 'equalTo',
 			'searchValue' => 'internal id of record to inspect'
@@ -30,8 +32,21 @@ Here are some examples that are useful in inspecting netsuite objects in order t
 	$netsuiteClientConnection->setSearchPreferences(TRUE, 10);
 	$searchResponse = $netsuiteClientConnection->search($customRecordSearch);
 	print_r($searchResponse);
-	
 
+###Retrieving All Items###
+
+	$ns = netsuite::getNetsuiteConnection(FALSE);
+	$searchResults = netsuite::entitySearch('ItemSearchBasic', array());
+
+	do {
+		foreach($searchResults as $item) {
+			$fields = $item->getFields();
+			print_r($fields)
+		
+		}
+	} while(($searchResults = netsuite::nextEntitySearchPage()));
+
+##Notes##
 The acceptable options for the `getAll()` method defined in the PHPToolkit are found [here](https://webservices.netsuite.com/xsd/platform/v2010_2_0/coreTypes.xsd) under the `name="GetAllRecordType"` node.
 
 Note that pulling information about a record that is linked to a record which you don't have access to view will result in the [following error](http://usergroup.netsuite.com/users/showthread.php?t=28090) `Invalid custrecord_fieldname reference key 12345` with error code `INVALID_KEY_OR_REF`

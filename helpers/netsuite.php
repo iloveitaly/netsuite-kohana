@@ -2,6 +2,11 @@
 class netsuite_Core {
 	public static $netsuiteConnection;
 	
+	// for searching
+	public static $lastSearchResult = null;
+	public static $resultsPerPage = 100;
+	public static $debug = true;
+	
 	public static function getNetsuiteConnection($sandbox = false) {
 		if(empty(netsuite::$netsuiteConnection)) {
 			require Kohana::find_file('vendor', "netsuite/PHPtoolkit");
@@ -550,6 +555,67 @@ class netsuite_Core {
 		
 		// echo "Converted Date: ".date("c", $convertedTime)."<br/>";
 		return date("c", $convertedTime);
+	}
+	
+	public function entitySearch($searchType, $searchFields) {
+		$ns = netsuite::getNetsuiteConnection();
+		
+		$entitySearch = new nsComplexObject($searchType);
+		$entitySearch->setFields($searchFields);
+
+		$ns->setSearchPreferences(FALSE, self::$resultsPerPage);
+		
+		$searchResponse = $ns->search($entitySearch);
+		$totalNumberOfPages = $searchResponse->totalPages;
+		
+		if(self::$debug) echo "Total Search Result: ".($totalNumberOfPages * self::$resultsPerPage)."\n";
+		
+		// TODO: should probably check for failed search here
+		// TODO: similiar to below, we should do a retry if the search failed because of a netsuite connection issue
+		
+		if($searchResponse->totalRecords == 0) {
+			self::$lastEntitySearch = null;
+			return array();
+		}
+		
+		self::$lastEntitySearch = $searchResponse;
+		return $searchResponse->recordList;
+	}
+	
+	public static function nextEntitySearchPage() {
+		if(!self::$lastEntitySearch) return array();
+		
+		$ns = netsuite::getNetsuiteConnection();
+		
+		if(self::$debug) echo "Processing results page ".self::$lastEntitySearch->pageIndex.' of '.self::$lastEntitySearch->totalPages."\n\n";
+		
+		// echo $searchResponse->searchId.', '.$searchResponse->pageIndex.', '.$searchResponse->totalPages."<br />";
+
+		if(self::$lastEntitySearch->pageIndex + 1 <= self::$lastEntitySearch->totalPages) {
+			// had problems with netsuite timing out. Ensure a reasonable level of success with spaced retries
+			$retryLimit = 5;
+			$totalNumberOfPages = self::$lastEntitySearch->totalPages;
+			
+			do {
+				if($retryLimit < 5) sleep(2);
+				
+				if(self::$debug) echo "Retrieving page ".(self::$lastEntitySearch->pageIndex + 1)." of ".$totalNumberOfPages."\n";
+				$searchResponse = $ns->searchMoreWithId(self::$lastEntitySearch->searchId, self::$lastEntitySearch->pageIndex + 1);
+			} while(!$searchResponse->isSuccess && --$retryLimit > 0);
+			
+			if($retryLimit == 0 && !$searchResponse->isSuccess) {
+				if(self::$debug) echo "Error retrieving page";
+				
+				self::$lastEntitySearch = null;
+				return array();
+			}
+			
+			self::$lastEntitySearch = $searchResponse;
+			return self::$lastEntitySearch->recordList;
+		} else {
+			self::$lastEntitySearch = null;
+			return array();
+		}		
 	}
 }
 ?>
