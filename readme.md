@@ -49,4 +49,6 @@ Your `config/netsuite.php` should look something like this
 ##Notes##
 The acceptable options for the `getAll()` method defined in the PHPToolkit are found [here](https://webservices.netsuite.com/xsd/platform/v2010_2_0/coreTypes.xsd) under the `name="GetAllRecordType"` node.
 
+Links to the XSD files can be found in the [Web Services Platform Guide PDF document](http://www.netsuite.com/portal/partners/integration/download/SuiteTalkWebServicesPlatformGuide_2011.1.pdf) under the heading "System Constants XSD Files".
+
 Note that pulling information about a record that is linked to a record which you don't have access to view will result in the [following error](http://usergroup.netsuite.com/users/showthread.php?t=28090) `Invalid custrecord_fieldname reference key 12345` with error code `INVALID_KEY_OR_REF`
